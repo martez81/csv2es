@@ -41,7 +41,7 @@ def echo(message, quiet):
         click.echo(message)
 
 
-def documents_from_file(es, filename, delimiter, quiet):
+def documents_from_file(es, filename, delimiter, quiet, id_name):
     """
     Return a generator for pulling rows from a given delimited file.
 
@@ -49,6 +49,7 @@ def documents_from_file(es, filename, delimiter, quiet):
     :param filename: the name of the file to read from or '-' if stdin
     :param delimiter: the delimiter to use
     :param quiet: don't output anything to the console when this is True
+    :param id_name: specify column that will serve as _id
     :return: generator returning document-indexing operations
     """
     def all_docs():
@@ -65,7 +66,11 @@ def documents_from_file(es, filename, delimiter, quiet):
                 count += 1
                 if count % 10000 == 0:
                     echo('Sent documents: ' + str(count), quiet)
-                yield es.index_op(row)
+
+                if id_name:
+                    yield es.index_op(row, id=row.pop(id_name))
+                else:
+                    yield es.index_op(row)
 
     return all_docs
 
@@ -146,6 +151,8 @@ def sanitize_delimiter(delimiter, is_tab):
               help='The document type (like user_records)')
 @click.option('--import-file', required=True,
               help='File to import (or \'-\' for stdin)    ')
+@click.option('--id-name', required=False,
+              help='Attribute name to use as document ID         ')
 @click.option('--mapping-file', required=False,
               help='JSON mapping file for index')
 @click.option('--delimiter', required=False,
@@ -165,7 +172,7 @@ def sanitize_delimiter(delimiter, is_tab):
 @click.option('--quiet', is_flag=True, required=False,
               help='Minimize console output')
 @click.version_option(version=__version__, )
-def cli(index_name, delete_index, mapping_file, doc_type, import_file,
+def cli(index_name, id_name, delete_index, mapping_file, doc_type, import_file,
         delimiter, tab, host, docs_per_chunk, bytes_per_chunk, parallel, quiet):
     """
     Bulk import a delimited file into a target Elasticsearch instance. Common
@@ -207,7 +214,7 @@ def cli(index_name, delete_index, mapping_file, doc_type, import_file,
         es.put_mapping(index_name, doc_type, mapping)
 
     target_delimiter = sanitize_delimiter(delimiter, tab)
-    documents = documents_from_file(es, import_file, target_delimiter, quiet)
+    documents = documents_from_file(es, import_file, target_delimiter, quiet, id_name)
     perform_bulk_index(host, index_name, doc_type, documents, docs_per_chunk, bytes_per_chunk, parallel)
 
 
