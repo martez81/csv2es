@@ -146,19 +146,21 @@ def sanitize_delimiter(delimiter, is_tab):
 
 @click.command()
 @click.option('--index-name', required=True,
-              help='Index name to load data into         ')
+              help='Index name to load data into')
 @click.option('--doc-type', required=True,
               help='The document type (like user_records)')
 @click.option('--import-file', required=True,
-              help='File to import (or \'-\' for stdin)    ')
+              help='File to import (or \'-\' for stdin)')
 @click.option('--id-name', required=False,
-              help='Attribute name to use as document ID         ')
+              help='Attribute name to use as document ID')
 @click.option('--mapping-file', required=False,
               help='JSON mapping file for index')
 @click.option('--delimiter', required=False,
               help='The field delimiter to use, defaults to CSV')
 @click.option('--tab', is_flag=True, required=False,
               help='Assume tab-separated, overrides delimiter')
+@click.option('--continue-import', is_flag=True, required=False,
+              help='Continue importing data into existing index')
 @click.option('--host', default='http://127.0.0.1:9200/', required=False,
               help='The Elasticsearch host (http://127.0.0.1:9200/)')
 @click.option('--docs-per-chunk', default=5000, required=False,
@@ -173,7 +175,7 @@ def sanitize_delimiter(delimiter, is_tab):
               help='Minimize console output')
 @click.version_option(version=__version__, )
 def cli(index_name, id_name, delete_index, mapping_file, doc_type, import_file,
-        delimiter, tab, host, docs_per_chunk, bytes_per_chunk, parallel, quiet):
+        delimiter, continue_import, tab, host, docs_per_chunk, bytes_per_chunk, parallel, quiet):
     """
     Bulk import a delimited file into a target Elasticsearch instance. Common
     delimited files include things like CSV and TSV.
@@ -200,10 +202,13 @@ def cli(index_name, id_name, delete_index, mapping_file, doc_type, import_file,
         except ElasticHttpNotFoundError:
             echo('Index ' + index_name + ' not found, nothing to delete', quiet)
 
+    #if continue_import:
+    #    if not es.indices.exists(index_name):
+
     try:
         es.create_index(index_name)
         echo('Created new index: ' + index_name, quiet)
-    except IndexAlreadyExistsError:
+    except Exception:
         echo('Index ' + index_name + ' already exists', quiet)
 
     echo('Using document type: ' + doc_type, quiet)
